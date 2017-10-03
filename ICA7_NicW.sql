@@ -1,6 +1,9 @@
 --Nic Wasylyshyn
 --Ica 07
 
+--use NorthWindTraders
+--go
+
 --q1
 
 go
@@ -33,3 +36,6 @@ go
 
 go
 
+--q9
+
+go
