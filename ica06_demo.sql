@@ -1,6 +1,6 @@
 -- Demo ica06 - distinct, order by
---use PublishersDatabase
---go
+use PublishersDatabase
+go
 
 -- d1 - between * Inclusive Range
 select *

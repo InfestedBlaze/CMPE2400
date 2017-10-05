@@ -1,8 +1,8 @@
 --demo subquery
 --Nic Wasylyshyn
 
---use PublishersDatabase
---go
+use PublishersDatabase
+go
 
 --q1 - titles and books with sales from may
 select
