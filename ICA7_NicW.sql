@@ -137,8 +137,8 @@ where ProductID in (
 	where OrderID in (
 		select OrderID
 		from Orders
-		where ShippedDate > (RequiredDate + @date) and 
-			  CustomerID in (
+		where DATEDIFF(d, RequiredDate, ShippedDate) > 7
+			and CustomerID in (
 				select CustomerID
 				from Customers
 				where Country in ('UK', 'USA')
