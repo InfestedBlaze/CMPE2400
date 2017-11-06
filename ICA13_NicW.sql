@@ -155,11 +155,26 @@ if exists(
 go
 
 create procedure ica13_06
+@class_id as int = 0
 as
-	
+	select 
+		at.ass_type_desc as 'Type',
+		round(avg(res.score), 2) as 'Raw Avg',
+		round(avg((res.score / req.max_score) * 100), 2) as 'Avg',
+		count(res.score) as 'Num'
+	from ClassTrak.dbo.Assignment_type as at
+		left outer join ClassTrak.dbo.Requirements as req
+		on at.ass_type_id = req.ass_type_id
+			left outer join ClassTrak.dbo.Results as res
+			on req.req_id = res.req_id
+	where res.class_id like @class_id
+	group by at.ass_type_desc
+	order by at.ass_type_desc	
 go
 
-exec ica13_06
+exec ica13_06 88
+go
+exec ica13_06 @class_id = 89
 go
 
 --q7
@@ -172,9 +187,35 @@ if exists(
 go
 
 create procedure ica13_07
+@year as int,
+@minAvg as int = 50,
+@minSize as int = 10
 as
-	
+	select 
+		cast(S.last_name + ', ' + S.first_name as nvarchar(24)) as 'Student',
+		c.class_desc as 'Class',
+		at.ass_type_desc as 'Type',
+		count(res.req_id) as 'Submitted',
+		round( avg((res.score / req.max_score) * 100), 1) as 'Avg'
+	from ClassTrak.dbo.Students as s
+		left outer join ClassTrak.dbo.Results as res
+		on S.student_id = res.student_id
+			left outer join ClassTrak.dbo.Classes as c
+			on res.class_id = C.class_id
+
+			left outer join ClassTrak.dbo.Requirements as req
+			on res.req_id = req.req_id
+				left outer join ClassTrak.dbo.Assignment_type as at
+				on req.ass_type_id = at.ass_type_id
+	where DATEPART(year, c.start_date) like @year 
+		and res.score is not null
+	group by s.last_name, s.first_name, c.class_desc, at.ass_type_desc
+	having round( avg((res.score / req.max_score) * 100), 1) < @minAvg and
+		 count(res.req_id) > @minSize
+	order by Submitted	
 go
 
-exec ica13_07
+exec ica13_07 @year=2011
+go
+exec ica13_07 @year=2011, @minAvg=40, @minSize=15
 go
