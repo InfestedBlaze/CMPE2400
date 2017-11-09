@@ -220,16 +220,46 @@ if exists(
 go
 
 create procedure ica14_04
+@student as nvarchar(24)
 as
 	
 go
 
-exec ica14_04
+exec ica14_04 'Ron'
 go
 
 
+declare @student as nvarchar(24) = 'Ron'
 
 
+select
+	s.first_name + ' ' + s.last_name as 'Name'
+from ClassTrak.dbo.Students as s
+where (s.first_name + ' ' + s.last_name) like @student + '%'
+
+
+
+select 
+	s.first_name + ' ' + s.last_name as 'Name',
+	c.class_desc,
+	at.ass_type_desc,
+	ROUND( AVG((res.score / req.max_score) * 100), 1) as 'Avg'
+into #tempTable
+from ClassTrak.dbo.Students as s
+	left outer join ClassTrak.dbo.Results as res
+	on s.student_id = res.student_id
+		left outer join ClassTrak.dbo.Classes as c
+		on res.class_id = c.class_id
+		left outer join ClassTrak.dbo.Requirements as req
+		on res.req_id = req.req_id
+			left outer join ClassTrak.dbo.Assignment_type as at
+			on req.ass_type_id = at.ass_type_id
+where (s.first_name + ' ' + s.last_name) like @student + '%'
+group by s.first_name, s.last_name, c.class_desc, at.ass_type_desc
+
+
+drop table #tempTable
+go
 
 
 
