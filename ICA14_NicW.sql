@@ -135,15 +135,69 @@ if exists(
 go
 
 create procedure ica14_03
+@classID as int,
+@AssignDescript as varchar(3) = 'all'
 as
+	select 
+		s.last_name as 'Last',
+		at.ass_type_desc,
+		round(min((res.score / req.max_score) * 100), 1) as 'Low',
+		round(max((res.score / req.max_score) * 100), 1) as 'High',
+		round(avg((res.score / req.max_score) * 100), 1) as 'Avg'
+	into #tempTable
+	from ClassTrak.dbo.Students as s
+		left outer join ClassTrak.dbo.Results as res
+		on s.student_id = res.student_id
+			left outer join ClassTrak.dbo.Requirements as req
+			on res.req_id = req.req_id
+				left outer join ClassTrak.dbo.Assignment_type as at
+				on req.ass_type_id = at.ass_type_id
+	where res.class_id like @classID
+	group by s.last_name, at.ass_type_desc
+	order by [Avg] desc
+
+	if @AssignDescript like 'all'
+		--We want everything, no bias to assignment type
+		select *
+		from #tempTable
+		order by [Avg] desc
+	 
+	else if @AssignDescript like 'ica'
+		--Only show assignments
+		select *
+		from #tempTable
+		where #tempTable.ass_type_desc like 'Assignment'
+		order by [Avg] desc
 	
+	else if @AssignDescript like 'lab'
+		--Only show labs
+		select *
+		from #tempTable
+		where #tempTable.ass_type_desc like 'Lab'
+		order by [Avg] desc
+	
+	else if @AssignDescript like 'le'
+		--Only show Lab Exams
+		select *
+		from #tempTable
+		where #tempTable.ass_type_desc like 'Lab Exam'
+		order by [Avg] desc
+	
+	else if @AssignDescript like 'fe'
+		--Only show Final Exams
+		select *
+		from #tempTable
+		where #tempTable.ass_type_desc like 'Final'
+		order by [Avg] desc
 go
 
-exec ica14_03
+
+declare @cid as int
+set @cid = 123
+exec ica14_03 @cid, 'ica'
+set @cid = 123
+exec ica14_03 @classID = @cid, @AssignDescript = 'le'
 go
-
-
-
 
 
 
