@@ -223,6 +223,44 @@ create procedure ica14_04
 @student as nvarchar(24),
 @summary as int = 0
 as
+--do the name check first
+--	select distinct Name
+--	from #tempTable
+--	where Name like @student + '%'
+
+--	if @@ROWCOUNT != 1
+--		return -1
+
+	select 
+		s.first_name + ' ' + s.last_name as 'Name',
+		c.class_desc,
+		at.ass_type_id,
+		ROUND( AVG((res.score / req.max_score) * 100), 1) as 'Avg'
+	into #tempTable
+	from ClassTrak.dbo.Students as s
+		left outer join ClassTrak.dbo.Results as res
+		on s.student_id = res.student_id
+			inner join ClassTrak.dbo.Classes as c
+			on res.class_id = c.class_id
+			inner join ClassTrak.dbo.Requirements as req
+			on res.req_id = req.req_id
+				left outer join ClassTrak.dbo.Assignment_type as at
+				on req.ass_type_id = at.ass_type_id
+	where (s.first_name + ' ' + s.last_name) like @student + '%'
+	group by s.first_name, s.last_name, c.class_desc, at.ass_type_id
+
+
+
+	if @summary = 0
+		select *
+		from #tempTable;
+	else if @summary = 1
+		select
+			Name,
+			class_desc,
+			[Avg]
+		from #tempTable
+
 	return 1
 go
 
@@ -237,38 +275,7 @@ exec @retVal = ica14_04 @student = 'Ron', @summary = 1
 select @retVal
 
 
-declare @student as nvarchar(24) = 'Ron H'
 
-select
-	s.first_name + ' ' + s.last_name as 'Name'
-from ClassTrak.dbo.Students as s
-where (s.first_name + ' ' + s.last_name) like @student + '%'
-
-
-
-select 
-	s.first_name + ' ' + s.last_name as 'Name',
-	c.class_desc,
-	at.ass_type_id,
-	ROUND( AVG((res.score / req.max_score) * 100), 1) as 'Avg'
-into #tempTable
-from ClassTrak.dbo.Students as s
-	left outer join ClassTrak.dbo.Results as res
-	on s.student_id = res.student_id
-		inner join ClassTrak.dbo.Classes as c
-		on res.class_id = c.class_id
-		inner join ClassTrak.dbo.Requirements as req
-		on res.req_id = req.req_id
-			left outer join ClassTrak.dbo.Assignment_type as at
-			on req.ass_type_id = at.ass_type_id
-where (s.first_name + ' ' + s.last_name) like @student + '%'
-group by s.first_name, s.last_name, c.class_desc, at.ass_type_id
-
-select *
-from #tempTable
-
-drop table #tempTable
-go
 
 
 
