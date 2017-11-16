@@ -302,38 +302,72 @@ go
 
 create procedure ica14_05
 @lastName as nvarchar(20),
-@Returned as int output,
+@InstructName as nvarchar(30) output,
 @NumClasses as int output,
 @NumStudents as int output,
 @NumGraded as int output,
 @AvgAwarded as float output
 as
-	
+	declare @rows as int
+
+	select 
+		@InstructName = i.first_name + ' ' + i.last_name
+	from ClassTrak.dbo.Instructors as i
+	where i.last_name like @lastName+'%'
+
+	set @rows = @@ROWCOUNT
+
+	select 
+		@NumClasses = count(c.class_id)
+	from ClassTrak.dbo.Instructors as i
+		inner join ClassTrak.dbo.Classes as c
+		on i.instructor_id = c.instructor_id
+	where i.last_name like @lastName+'%'
+
+	select 
+		@NumStudents = count(s.student_id)
+	from ClassTrak.dbo.Instructors as i
+		inner join ClassTrak.dbo.Classes as c
+		on i.instructor_id = c.instructor_id
+			inner join ClassTrak.dbo.class_to_student as cts
+			on c.class_id = cts.class_id
+				inner join ClassTrak.dbo.Students as s
+				on cts.student_id = s.student_id
+	where i.last_name like @lastName+'%'
+
+	select
+		@NumGraded = count(res.score),
+		@AvgAwarded = avg((res.score / req.max_score) * 100)
+	from ClassTrak.dbo.Instructors as i
+		inner join ClassTrak.dbo.Classes as c
+		on i.instructor_id = c.instructor_id
+			inner join ClassTrak.dbo.Results as res
+			on c.class_id = res.class_id
+				inner join ClassTrak.dbo.Requirements as req
+				on res.req_id = req.req_id
+	where i.last_name like @lastName+'%'
+
+	return @rows
 go
 
-exec ica14_05 'Cas'
+declare
+	@fullName as nvarchar(30),
+	@return as int,
+	@classes as int,
+	@students as int,
+	@graded as int,
+	@avg as float
+
+exec @return = ica14_05 @lastName = 'Cas', @InstructName = @fullName output, @NumClasses = @classes output, @NumStudents = @students output, @NumGraded = @graded output, @AvgAwarded = @avg output
+
+if @return = 1
+	select
+		@fullName as 'Instructor',
+		@return as 'Return',
+		@classes as 'Num Classes',
+		@students as 'Total Students',
+		@graded as 'Total Graded',
+		@avg as 'Total Awarded'
+
 go
 
-
-declare @lastName as nvarchar(20) = 'C'
-
-select 
-	i.first_name + ' ' + i.last_name as 'Instructor',
-	1 as 'Returned',
-	count(c.class_id) as 'Num Classes',
-	count(s.student_id) as 'Total Students',
-	count(res.score) as 'Total Graded',
-	avg((res.score / req.max_score) * 100) as 'Avg Awarded'
-from ClassTrak.dbo.Instructors as i
-	inner join ClassTrak.dbo.Classes as c
-	on i.instructor_id = c.instructor_id
-		inner join ClassTrak.dbo.class_to_student as cts
-		on c.class_id = cts.class_id
-			inner join ClassTrak.dbo.Students as s
-			on cts.student_id = s.student_id
-		inner join ClassTrak.dbo.Results as res
-		on c.class_id = res.class_id
-			inner join ClassTrak.dbo.Requirements as req
-			on res.req_id = req.req_id
-where i.last_name like @lastName+'%'
-group by i.first_name, i.last_name
