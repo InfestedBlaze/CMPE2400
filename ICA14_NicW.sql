@@ -224,12 +224,14 @@ create procedure ica14_04
 @summary as int = 0
 as
 --do the name check first
---	select distinct Name
---	from #tempTable
---	where Name like @student + '%'
+declare @stuName as nvarchar(30)
+	select 
+		@stuName = s.first_name + ' ' + s.last_name
+	from ClassTrak.dbo.Students as s
+	where (s.first_name + ' ' + s.last_name) like @student + '%'
 
---	if @@ROWCOUNT != 1
---		return -1
+	if @@ROWCOUNT <> 1
+		return -1
 
 	select 
 		s.first_name + ' ' + s.last_name as 'Name',
@@ -299,9 +301,39 @@ if exists(
 go
 
 create procedure ica14_05
+@lastName as nvarchar(20),
+@Returned as int output,
+@NumClasses as int output,
+@NumStudents as int output,
+@NumGraded as int output,
+@AvgAwarded as float output
 as
 	
 go
 
-exec ica14_05
+exec ica14_05 'Cas'
 go
+
+
+declare @lastName as nvarchar(20) = 'C'
+
+select 
+	i.first_name + ' ' + i.last_name as 'Instructor',
+	1 as 'Returned',
+	count(c.class_id) as 'Num Classes',
+	count(s.student_id) as 'Total Students',
+	count(res.score) as 'Total Graded',
+	avg((res.score / req.max_score) * 100) as 'Avg Awarded'
+from ClassTrak.dbo.Instructors as i
+	inner join ClassTrak.dbo.Classes as c
+	on i.instructor_id = c.instructor_id
+		inner join ClassTrak.dbo.class_to_student as cts
+		on c.class_id = cts.class_id
+			inner join ClassTrak.dbo.Students as s
+			on cts.student_id = s.student_id
+		inner join ClassTrak.dbo.Results as res
+		on c.class_id = res.class_id
+			inner join ClassTrak.dbo.Requirements as req
+			on res.req_id = req.req_id
+where i.last_name like @lastName+'%'
+group by i.first_name, i.last_name
