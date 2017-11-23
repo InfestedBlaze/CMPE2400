@@ -64,25 +64,22 @@ insert into class_to_student (class_id, student_id, active)
 --   All students in the new class - filter by description having "Beware"
 --       sort by first name in last name
 
+select first_name + ' ' + last_name as 'Instructor'
+from Instructors
+
+select course_abbrev + ' : ' + course_desc as 'Course'
+from Courses
+where course_desc like '%SQL%'
+
 select 
-	i.first_name + ' ' + i.last_name as 'Instructor',
-	co.course_abbrev + ' : ' + co.course_desc as 'Course',
-	c.class_desc as 'Class',
+	class_desc as 'Class',
 	s.first_name + ' ' + s.last_name as 'Student'
-from Instructors as i
-	left outer join Classes as c
-	on i.instructor_id = c.instructor_id
-		left outer join Courses as co
-		on c.course_id = co.course_id
-		left outer join class_to_student as cts
-		on c.class_id = cts.class_id
-			inner join Students as s
-			on cts.student_id = s.student_id
-where 
-	co.course_desc like '%SQL%' and
-	c.start_date > '1 Aug 2016' and
-	c.class_desc like '%Beware%'
-order by s.last_name, s.first_name
+from Classes as c
+	left outer join class_to_student as cts
+	on c.class_id = cts.class_id
+		inner join Students as s
+		on cts.student_id = s.student_id
+where start_date > '1 Aug 2016' and class_desc like '%Beware%'
 
 go
 -- end q1
@@ -105,43 +102,57 @@ delete class_to_student
 where class_id like (
 	select class_id
 	from Classes
-	where 
+	where class_desc like 'Beware the optimizer'
 )
 
 -- C - declare, query and set class id to your new class based on above filter.
 --     declare, query and save the linked course and instructor ( use in B and A )
 --     Delete the new class
 
-
+declare @removeCourse as int, @removeInstructor as int
+select 
+	@removeCourse = course_id,
+	@removeInstructor = instructor_id
+from Classes
+where class_id like (
+	select class_id
+	from Classes
+	where class_desc like 'Beware the optimizer'
+)
+delete Classes
+where class_id like (
+	select class_id
+	from Classes
+	where class_desc like 'Beware the optimizer'
+)
 
 -- B - Delete the new course as saved in C
 
-
+delete Courses
+where course_id like @removeCourse
 
 -- A - Delete the new instructor as saved in C
 
-
+delete Instructors
+where instructor_id like @removeInstructor
 
 -- E - Repeat q1 part E to verify the removal of all the data.
 
+select first_name + ' ' + last_name as 'Instructor'
+from Instructors
+
+select course_abbrev + ' : ' + course_desc as 'Course'
+from Courses
+where course_desc like '%SQL%'
+
 select 
-	i.first_name + ' ' + i.last_name as 'Instructor',
-	co.course_abbrev + ' : ' + co.course_desc as 'Course',
-	c.class_desc as 'Class',
+	class_desc as 'Class',
 	s.first_name + ' ' + s.last_name as 'Student'
-from Instructors as i
-	left outer join Classes as c
-	on i.instructor_id = c.instructor_id
-		left outer join Courses as co
-		on c.course_id = co.course_id
-		left outer join class_to_student as cts
-		on c.class_id = cts.class_id
-			inner join Students as s
-			on cts.student_id = s.student_id
-where 
-	co.course_desc like '%SQL%' and
-	c.start_date > '1 Aug 2016' and
-	c.class_desc like '%Beware%'
-order by s.last_name, s.first_name
+from Classes as c
+	left outer join class_to_student as cts
+	on c.class_id = cts.class_id
+		inner join Students as s
+		on cts.student_id = s.student_id
+where start_date > '1 Aug 2016' and class_desc like '%Beware%'
 
 go
