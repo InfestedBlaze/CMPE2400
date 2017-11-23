@@ -49,12 +49,12 @@ from ClassTrak.dbo.Assignment_type as at
 		left outer join ClassTrak.dbo.Results as res
 		on req.req_id = res.req_id
 where res.class_id like @class_id
-group by at.ass_type_desc
+group by at.ass_type_desc, res.class_id
 order by at.ass_type_desc
 
 
 update Results
-set score += (req.max_score * 0.1)
+set score = score + (req.max_score * 0.1)
 from Results as res
 	inner join Requirements as req
 	on res.req_id = req.req_id
@@ -73,7 +73,7 @@ from ClassTrak.dbo.Assignment_type as at
 		left outer join ClassTrak.dbo.Results as res
 		on req.req_id = res.req_id
 where res.class_id like @class_id
-group by at.ass_type_desc
+group by at.ass_type_desc, res.class_id
 order by at.ass_type_desc
 
 go
