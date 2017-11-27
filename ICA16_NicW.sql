@@ -43,15 +43,14 @@ select
 	round(avg(res.score), 2) as 'Raw Avg',
 	round(avg((res.score / req.max_score) * 100), 2) as 'Avg',
 	count(res.score) as 'Num'
-from ClassTrak.dbo.Assignment_type as at
-	left outer join ClassTrak.dbo.Requirements as req
+from Assignment_type as at
+	inner join Requirements as req
 	on at.ass_type_id = req.ass_type_id
-		left outer join ClassTrak.dbo.Results as res
+		inner join Results as res
 		on req.req_id = res.req_id
-where res.class_id like @class_id
-group by at.ass_type_desc, res.class_id
+where res.class_id = @class_id and req.class_id = @class_id
+group by at.ass_type_desc
 order by at.ass_type_desc
-
 
 update Results
 set score = score + (req.max_score * 0.1)
@@ -61,19 +60,18 @@ from Results as res
 where ((res.score / req.max_score) * 100) < 50
 	and res.class_id = @class_id
 
-
 select 
 	at.ass_type_desc as 'Type',
 	round(avg(res.score), 2) as 'Raw Avg',
 	round(avg((res.score / req.max_score) * 100), 2) as 'Avg',
 	count(res.score) as 'Num'
-from ClassTrak.dbo.Assignment_type as at
-	left outer join ClassTrak.dbo.Requirements as req
+from Assignment_type as at
+	inner join Requirements as req
 	on at.ass_type_id = req.ass_type_id
-		left outer join ClassTrak.dbo.Results as res
+		inner join Results as res
 		on req.req_id = res.req_id
-where res.class_id like @class_id
-group by at.ass_type_desc, res.class_id
+where res.class_id = @class_id and req.class_id = @class_id
+group by at.ass_type_desc
 order by at.ass_type_desc
 
 go
