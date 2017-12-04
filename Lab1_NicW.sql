@@ -57,6 +57,7 @@ CREATE TABLE [dbo].[Sessions](
 	[RiderID] [INT] NOT NULL,
 	[BikeID] [NVARCHAR](6) NOT NULL,
 	[SessionDate] [DATETIME] NOT NULL
+		DEFAULT getdate()
 		CONSTRAINT CHK_SDate_StartTime CHECK ([SessionDate] > '1 Sep 2017'),
 	[Laps] [INT] NULL
 		CONSTRAINT DEF_Laps DEFAULT 0,
@@ -79,23 +80,6 @@ GO
 
 ----Stored Procedures--------------------------------------
 
---Shell
---if exists(
---	select *
---	from sysobjects
---	where name like 'ica13_01'
---)
---	drop procedure ica13_01
---go
---create procedure ica13_01
---@input as int,
---@output as int output
---as
---	return 0  --Success
---	return -1 --Failure
---go
-
-
 if exists(
 	select *
 	from sysobjects
@@ -105,5 +89,164 @@ if exists(
 go
 create procedure PopulateBikes
 as
+	declare @looperBike as int = 0;
+	declare @looperMake as int = 0;
+	declare @looperTime as int = 0;
+	declare @maker as nvarchar(3) = 'HYS'
+	declare @timer as nvarchar(2) = 'AP'
+
+	while @looperBike < 20
+	begin
+		insert into nwasylyshyn1_Riders.dbo.Bikes (BikeID) 
+		values ( RIGHT('000'+CAST(@looperBike AS VARCHAR(3)),3) + 'H-A')
+			
+		insert into nwasylyshyn1_Riders.dbo.Bikes (BikeID) 
+		values ( RIGHT('000'+CAST(@looperBike AS VARCHAR(3)),3) + 'H-P')
+			
+		insert into nwasylyshyn1_Riders.dbo.Bikes (BikeID) 
+		values ( RIGHT('000'+CAST(@looperBike AS VARCHAR(3)),3) + 'Y-A')
+			
+		insert into nwasylyshyn1_Riders.dbo.Bikes (BikeID) 
+		values ( RIGHT('000'+CAST(@looperBike AS VARCHAR(3)),3) + 'Y-P')
+		
+		insert into nwasylyshyn1_Riders.dbo.Bikes (BikeID) 
+		values ( RIGHT('000'+CAST(@looperBike AS VARCHAR(3)),3) + 'S-A')
+		
+		insert into nwasylyshyn1_Riders.dbo.Bikes (BikeID) 
+		values ( RIGHT('000'+CAST(@looperBike AS VARCHAR(3)),3) + 'S-P')
+			
+		set @looperBike += 1;
+	end
+go
+
+if exists(
+	select
+		*
+	from sysobjects
+	where name like 'RemoveBike'
+)
+drop procedure RemoveBike
+go
+create procedure RemoveBike
+@BikeID as nchar (6)= null,
+@ErrorMessage as nvarchar(max) output
+as
+	if @BikeID is	null
+	begin
+		set @ErrorMessage  = 'RemoveBike : BikeID can''t be NULL'
+		return -1
+	end
+	
+	if not exists ( 
+		select * 
+		from Bikes 
+		where BikeID = @BikeID 
+	)
+	begin
+		set @ErrorMessage  = 'RemoveBike : ' + @BikeID + ' doesn''t exist'
+		return -1
+	end
+	
+	if exists (
+		select *
+		from Sessions
+		where BikeID = @BikeID 
+	)
+	begin
+		set @ErrorMessage  = 'RemoveBike : ‘ + @BikeID + ‘ Currently in Session' 
+		return -1
+	end
+	
+	delete
+	from Bikes 
+	where BikeID = @BikeID
+	set @ErrorMessage = 'OK'
+	return 0
+go
+--------------------------------------------------
+if exists(
+	select *
+	from sysobjects
+	where name like 'AddRider'
+)
+	drop procedure AddRider
+go
+create procedure AddRider
+as
 	
 go
+
+if exists(
+	select *
+	from sysobjects
+	where name like 'RemoveRider'
+)
+	drop procedure RemoveRider
+go
+create procedure RemoveRider
+as
+	
+go
+--------------------------------------------------
+
+if exists(
+	select *
+	from sysobjects
+	where name like 'AddSession'
+)
+	drop procedure AddSession
+go
+create procedure AddSession
+as
+	
+go
+
+if exists(
+	select *
+	from sysobjects
+	where name like 'UpdateSession'
+)
+	drop procedure UpdateSession
+go
+create procedure UpdateSession
+as
+	
+go
+--------------------------------------------------
+
+if exists(
+	select *
+	from sysobjects
+	where name like 'RemoveClass'
+)
+	drop procedure RemoveClass
+go
+create procedure RemoveClass
+as
+	
+go
+
+if exists(
+	select *
+	from sysobjects
+	where name like 'ClassInfo'
+)
+	drop procedure ClassInfo
+go
+create procedure ClassInfo
+as
+	
+go
+
+if exists(
+	select *
+	from sysobjects
+	where name like 'ClassSummary'
+)
+	drop procedure ClassSummary
+go
+create procedure ClassSummary
+as
+	
+go
+--------------------------------------------------
