@@ -175,8 +175,21 @@ create procedure AddRider
 @Name as nvarchar(30),
 @ClassID as nvarchar(30) = null
 as
+	--Name is null
+	if @Name is null or @Name like ''
+		return -1
+	--Class does not exist
+	if @ClassID is not null and not exists(
+		select ClassId
+		from Class
+		where ClassID like @ClassID
+	)
+		return -2
+
 	insert Riders ([Name], [ClassID])
 	values (@Name, @ClassID);
+
+	return 0
 go
 
 if exists(
@@ -190,6 +203,14 @@ create procedure RemoveRider
 @RiderID as int,
 @force as bit = 0
 as
+	if @RiderID is null or not exists (
+		select RiderID
+		from Riders
+		where RiderID = @RiderID
+	)
+		return -1
+	
+
 	declare @count as int
 	select 
 		@count = count(s.RiderID)
@@ -197,11 +218,11 @@ as
 	where s.RiderID = @RiderID
 
 	if @count > 0 and @force = 0
-		return -1
+		return -2
 
 	if @force = 1
 		delete Sessions
-		where Sessions.RiderID = @RiderID
+		where RiderID = @RiderID
 
 	delete Riders
 	where Riders.RiderID = @RiderID
@@ -222,8 +243,29 @@ create procedure AddSession
 @BikeID as nvarchar(6),
 @Date as datetime
 as
-	if @Date < GETDATE()
+	if @RiderID is null or not exists(
+		select RiderID
+		from Sessions
+		where RiderID = @RiderID
+	)
 		return -1
+
+	if @BikeID is null or not exists(
+		select BikeID
+		from Sessions
+		where BikeID = @BikeID
+	)
+		return -2
+
+	if @Date is null or @Date < GETDATE()
+		return -3
+	
+	if exists(
+		select BikeID
+		from Sessions
+		where BikeId = @BikeID and SessionDate = @Date --Same bike at the same time
+	)
+		return -4
 
 	insert Sessions ([RiderID], [BikeID], [SessionDate])
 	values (@RiderID, @BikeID, @Date)
@@ -244,18 +286,29 @@ create procedure UpdateSession
 @Date as datetime,
 @Laps as int
 as
-	declare @lap as int, @rows as int
+	declare @lap as int
 
 	select 
-		@lap = Laps
+		@lap = Laps --Get our current number of laps
 	from Sessions
 	where 
 		BikeID like @BikeID and
 		RiderID = @RiderID and
 		SessionDate = @Date
 
-	set @rows = @@ROWCOUNT
-		
+	--our current laps are less than the laps to change it to
+	--Also have a session that has laps
+	if @lap < @Laps and @lap != null 
+		update Sessions
+		set Laps = @lap
+		where 
+			BikeID like @BikeID and
+			RiderID = @RiderID and
+			SessionDate = @Date
+	else
+		return -1
+
+	return 0
 go
 ---Class Procedures-------------------------------
 
@@ -267,8 +320,49 @@ if exists(
 	drop procedure RemoveClass
 go
 create procedure RemoveClass
+@ClassID as nvarchar(30),
+@force as bit = 0
 as
+	declare @rows as int, @RiderID as int
+
+	select @RiderID = RiderID
+	from Riders
+	where ClassID = @ClassID
+	set @rows = @@ROWCOUNT
+
+	--ClassID can't be null or empty
+	if @ClassID is null or @ClassID like ''
+		return -1
+
+	--We have a rider in this class, don't force
+	if @rows > 0 and @force = 0
+		return -2
 	
+	if @rows > 0 and @force = 1 begin
+		delete Sessions
+		where RiderID in (
+			select RiderID
+			from Riders
+			where ClassID like(
+				select ClassID
+				from Class
+				where ClassID = @ClassID
+			)
+		)
+
+		delete Riders
+		where ClassID = (
+			select ClassID
+			from Class
+			where ClassID = @ClassID
+		)
+	end
+
+	--Delete the class
+	delete Class
+	where ClassID = @ClassID
+
+	return 0
 go
 
 if exists(
