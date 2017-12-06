@@ -78,8 +78,8 @@ ALTER TABLE [Sessions] ADD
 GO
 
 
-----Stored Procedures--------------------------------------
-
+---Stored Procedures--------------------------------------
+---Bike Procedures--------------------------------
 if exists(
 	select *
 	from sysobjects
@@ -163,7 +163,7 @@ as
 	set @ErrorMessage = 'OK'
 	return 0
 go
---------------------------------------------------
+---Rider Procedures-------------------------------
 if exists(
 	select *
 	from sysobjects
@@ -172,8 +172,11 @@ if exists(
 	drop procedure AddRider
 go
 create procedure AddRider
+@Name as nvarchar(30),
+@ClassID as nvarchar(30) = null
 as
-	
+	insert Riders ([Name], [ClassID])
+	values (@Name, @ClassID);
 go
 
 if exists(
@@ -184,10 +187,26 @@ if exists(
 	drop procedure RemoveRider
 go
 create procedure RemoveRider
+@RiderID as int,
+@force as bit = 0
 as
-	
+	declare @count as int
+	select 
+		@count = count(s.RiderID)
+	from Sessions as s
+	where s.RiderID = @RiderID
+
+	if @count > 0 and @force = 0
+		return -1
+
+	if @force = 1
+		delete Sessions
+		where Sessions.RiderID = @RiderID
+
+	delete Riders
+	where Riders.RiderID = @RiderID
 go
---------------------------------------------------
+---Session Procedures-----------------------------
 
 if exists(
 	select *
@@ -212,7 +231,7 @@ create procedure UpdateSession
 as
 	
 go
---------------------------------------------------
+---Class Procedures-------------------------------
 
 if exists(
 	select *
@@ -249,4 +268,5 @@ create procedure ClassSummary
 as
 	
 go
---------------------------------------------------
+
+---Error Testing-----------------------------------------
