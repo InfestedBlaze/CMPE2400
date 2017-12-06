@@ -205,6 +205,8 @@ as
 
 	delete Riders
 	where Riders.RiderID = @RiderID
+
+	return 0
 go
 ---Session Procedures-----------------------------
 
@@ -216,8 +218,17 @@ if exists(
 	drop procedure AddSession
 go
 create procedure AddSession
+@RiderID as int,
+@BikeID as nvarchar(6),
+@Date as datetime
 as
-	
+	if @Date < GETDATE()
+		return -1
+
+	insert Sessions ([RiderID], [BikeID], [SessionDate])
+	values (@RiderID, @BikeID, @Date)
+
+	return 0
 go
 
 if exists(
@@ -228,8 +239,23 @@ if exists(
 	drop procedure UpdateSession
 go
 create procedure UpdateSession
+@RiderID as int,
+@BikeID as nvarchar(6),
+@Date as datetime,
+@Laps as int
 as
-	
+	declare @lap as int, @rows as int
+
+	select 
+		@lap = Laps
+	from Sessions
+	where 
+		BikeID like @BikeID and
+		RiderID = @RiderID and
+		SessionDate = @Date
+
+	set @rows = @@ROWCOUNT
+		
 go
 ---Class Procedures-------------------------------
 
