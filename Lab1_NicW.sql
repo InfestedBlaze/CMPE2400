@@ -407,13 +407,16 @@ as
 		from Class as c
 			outer join Riders as r
 			on c.RiderID = r.RiderID
-		where c.ClassID like @ClassID
+		where
+			c.ClassID like @ClassID
 	else
 		select *
 		from Class as c
 			outer join Riders as r
 			on c.RiderID = r.RiderID
-		where c.ClassID like @ClassID
+		where
+			c.ClassID like @ClassID and
+			c.RiderID = @RiderID
 go
 
 if exists(
@@ -424,8 +427,28 @@ if exists(
 	drop procedure ClassSummary
 go
 create procedure ClassSummary
+@ClassID as nvarchar(30) = null,
+@RiderID as int = null
 as
+	--ClassID can't be null or empty
+	if @ClassID is null or @ClassID like ''
+		return -1
+	--ClassID has to exist
+	if not exists(
+		select ClassID
+		from Class
+		where ClassID like @ClassID
+	)
+		return -1
+	--RiderID has to exist if it isn't null
+	if @RiderID is not null and not exists(
+		select RiderID
+		from Class
+		where RiderID = @RiderID
+	)
+		return -1
 
+	
 go
 
----Error Testing-----------------------------------------
+---Table Filling------------------------------------------------
