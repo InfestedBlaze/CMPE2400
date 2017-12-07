@@ -73,7 +73,7 @@ GO
 
 CREATE NONCLUSTERED INDEX NCI_RiderSession ON [Sessions] ([RiderID], [SessionDate])
 ALTER TABLE [Sessions] ADD
-	CONSTRAINT FK_Sessions_BikeID FOREIGN KEY (BikeID)
+	CONSTRAINT FK_Sessions_BikeID FOREIGN KEY ([BikeID])
 	REFERENCES Bikes(BikeID) ON DELETE NO ACTION
 GO
 
@@ -90,27 +90,25 @@ go
 create procedure PopulateBikes
 as
 	declare @looperBike as int = 0
-	declare @looperMake as int = 0
-	declare @looperTime as int = 0
 
 	while @looperBike < 20
 	begin
-		insert into nwasylyshyn1_Riders.dbo.Bikes (BikeID)
+		insert Bikes (BikeID)
 		values ( RIGHT('000'+CAST(@looperBike AS VARCHAR(3)),3) + 'H-A')
 
-		insert into nwasylyshyn1_Riders.dbo.Bikes (BikeID)
+		insert Bikes (BikeID)
 		values ( RIGHT('000'+CAST(@looperBike AS VARCHAR(3)),3) + 'H-P')
 
-		insert into nwasylyshyn1_Riders.dbo.Bikes (BikeID)
+		insert Bikes (BikeID)
 		values ( RIGHT('000'+CAST(@looperBike AS VARCHAR(3)),3) + 'Y-A')
 
-		insert into nwasylyshyn1_Riders.dbo.Bikes (BikeID)
+		insert Bikes (BikeID)
 		values ( RIGHT('000'+CAST(@looperBike AS VARCHAR(3)),3) + 'Y-P')
 
-		insert into nwasylyshyn1_Riders.dbo.Bikes (BikeID)
+		insert Bikes (BikeID)
 		values ( RIGHT('000'+CAST(@looperBike AS VARCHAR(3)),3) + 'S-A')
 
-		insert into nwasylyshyn1_Riders.dbo.Bikes (BikeID)
+		insert Bikes (BikeID)
 		values ( RIGHT('000'+CAST(@looperBike AS VARCHAR(3)),3) + 'S-P')
 
 		set @looperBike += 1;
@@ -126,10 +124,10 @@ if exists(
 drop procedure RemoveBike
 go
 create procedure RemoveBike
-@BikeID as nchar (6)= null,
+@BikeID as nvarchar (6)= null,
 @ErrorMessage as nvarchar(max) output
 as
-	if @BikeID is	null
+	if @BikeID is null
 	begin
 		set @ErrorMessage  = 'RemoveBike : BikeID can''t be NULL'
 		return -1
@@ -151,7 +149,7 @@ as
 		where BikeID = @BikeID
 	)
 	begin
-		set @ErrorMessage  = 'RemoveBike : � + @BikeID + � Currently in Session'
+		set @ErrorMessage  = 'RemoveBike : ' + @BikeID + ' Currently in Session'
 		return -1
 	end
 
@@ -243,14 +241,14 @@ create procedure AddSession
 as
 	if @RiderID is null or not exists(
 		select RiderID
-		from Sessions
+		from Riders
 		where RiderID = @RiderID
 	)
 		return -1
 
 	if @BikeID is null or not exists(
 		select BikeID
-		from Sessions
+		from Bikes
 		where BikeID = @BikeID
 	)
 		return -1
@@ -397,7 +395,7 @@ as
 	--RiderID has to exist if it isn't null
 	if @RiderID is not null and not exists(
 		select RiderID
-		from Class
+		from Riders
 		where RiderID = @RiderID
 	)
 		return -1
@@ -405,18 +403,18 @@ as
 	if @RiderID is NULL
 		select *
 		from Class as c
-			outer join Riders as r
-			on c.RiderID = r.RiderID
+			left outer join Riders as r
+			on c.ClassID = r.ClassID
 		where
 			c.ClassID like @ClassID
 	else
 		select *
 		from Class as c
-			outer join Riders as r
-			on c.RiderID = r.RiderID
+			left outer join Riders as r
+			on c.ClassID = r.ClassID
 		where
 			c.ClassID like @ClassID and
-			c.RiderID = @RiderID
+			r.RiderID = @RiderID
 go
 
 if exists(
@@ -430,11 +428,11 @@ create procedure ClassSummary
 @ClassID as nvarchar(30) = null,
 @RiderID as int = null
 as
-	--ClassID can't be null or empty
-	if @ClassID is null or @ClassID like ''
+	--ClassID can't be empty
+	if @ClassID like ''
 		return -1
-	--ClassID has to exist
-	if not exists(
+	--ClassID has to exist if it isn't null
+	if @ClassID is not null and not exists(
 		select ClassID
 		from Class
 		where ClassID like @ClassID
@@ -443,12 +441,105 @@ as
 	--RiderID has to exist if it isn't null
 	if @RiderID is not null and not exists(
 		select RiderID
-		from Class
+		from Riders
 		where RiderID = @RiderID
 	)
 		return -1
 
-	
+	if @ClassID is not null and @RiderID is null --Have just a classID
+		select 
+			c.ClassID as 'Class',
+			c.ClassDescription as 'Description',
+			r.Name as 'Rider',
+			count(s.SessionDate) as 'Session Count',
+			avg(coalesce(s.Laps, 0)) as 'Average Laps',
+			min(coalesce(s.Laps, 0)) as 'Minumum Laps',
+			max(coalesce(s.Laps, 0)) as 'Maximum Laps'
+		from Class as c
+			left outer join Riders as r
+			on c.ClassID = r.ClassID
+				left outer join Sessions as s
+				on r.RiderID = s.RiderID
+		where c.ClassID like @ClassID --------Different line
+		group by r.Name, c.ClassID, c.ClassDescription
+	else if @ClassID is null and @RiderID is not null --Have just a RiderID
+		select 
+			c.ClassID as 'Class',
+			c.ClassDescription as 'Description',
+			r.Name as 'Rider',
+			count(s.SessionDate) as 'Session Count',
+			avg(coalesce(s.Laps, 0)) as 'Average Laps',
+			min(coalesce(s.Laps, 0)) as 'Minumum Laps',
+			max(coalesce(s.Laps, 0)) as 'Maximum Laps'
+		from Class as c
+			left outer join Riders as r
+			on c.ClassID = r.ClassID
+				left outer join Sessions as s
+				on r.RiderID = s.RiderID
+		where r.RiderID = @RiderID --------Different line
+		group by r.Name, c.ClassID, c.ClassDescription
+	else-----------------------------------------------Have a class and rider ID
+		select 
+			c.ClassID as 'Class',
+			c.ClassDescription as 'Description',
+			r.Name as 'Rider',
+			count(s.SessionDate) as 'Session Count',
+			avg(coalesce(s.Laps, 0)) as 'Average Laps',
+			min(coalesce(s.Laps, 0)) as 'Minumum Laps',
+			max(coalesce(s.Laps, 0)) as 'Maximum Laps'
+		from Class as c
+			left outer join Riders as r
+			on c.ClassID = r.ClassID
+				left outer join Sessions as s
+				on r.RiderID = s.RiderID
+		group by r.Name, c.ClassID, c.ClassDescription
+		order by c.ClassID, r.Name
+
+	return 0
 go
 
 ---Table Filling------------------------------------------------
+
+--Add the bikes
+exec PopulateBikes
+
+---Making classes
+insert Class ([ClassID], [ClassDescription])
+values ('150cc - Motorcycle', 'Intense 150cc motorcycle action!')
+insert Class ([ClassID], [ClassDescription])
+values ('100cc - GoKarts', 'Standard Racing')
+go
+
+---Making Riders
+declare @identityM as int, @identityL as int, @identityP as int, @identityT as int
+exec AddRider @Name = 'Mario', @ClassID = '150cc - Motorcycle'
+set @identityM = @@IDENTITY
+exec AddRider @Name = 'Luigi', @ClassID = '150cc - Motorcycle'
+set @identityL = @@IDENTITY
+
+exec AddRider @Name = 'Peach', @ClassID = '100cc - GoKarts'
+set @identityP = @@IDENTITY
+exec AddRider @Name = 'Toadette', @ClassID = '100cc - GoKarts'
+set @identityT = @@IDENTITY
+
+---Making sessions, using riders
+exec AddSession @RiderID = @identityM, @BikeID = '000H-A', @Date = '24 December 2020'
+exec AddSession @RiderID = @identityM, @BikeID = '000H-A', @Date = '25 December 2020'
+
+exec AddSession @RiderID = @identityL, @BikeID = '005Y-P', @Date = '12 December 2020'
+exec AddSession @RiderID = @identityL, @BikeID = '005Y-P', @Date = '19 December 2020'
+
+exec AddSession @RiderID = @identityP, @BikeID = '010S-A', @Date = '12 December 2020'
+exec AddSession @RiderID = @identityP, @BikeID = '010S-A', @Date = '19 December 2020'
+
+exec AddSession @RiderID = @identityT, @BikeID = '019H-A', @Date = '24 December 2020'
+exec AddSession @RiderID = @identityT, @BikeID = '019H-A', @Date = '25 December 2020'
+go
+
+--Retrieve additions
+exec ClassInfo @ClassID = '150cc - Motorcycle'
+exec ClassInfo @ClassID = '100cc - GoKarts'
+exec ClassSummary
+go
+
+---Error Testing--------------------------------------------------------------------------------------
