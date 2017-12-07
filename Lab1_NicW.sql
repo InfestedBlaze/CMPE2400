@@ -47,7 +47,7 @@ GO
 CREATE TABLE [dbo].[Bikes](
 	[BikeID] [NVARCHAR](6) NOT NULL
 		CONSTRAINT CHK_BikeID CHECK ([BikeID] like '[0-9][0-9][0-9][A-Z]-[AP]'), --###N-M Format
-	[StableDate] [DATETIME] NULL,
+	[StableDate] [DATETIME] NULL default getdate(),
 	CONSTRAINT [PK_Bikes] PRIMARY KEY([BikeID])
 )
 GO
@@ -329,7 +329,6 @@ as
 	end
 
 	declare @lap as int
-
 	select
 		@lap = Laps --Get our current number of laps
 	from Sessions
@@ -340,9 +339,9 @@ as
 
 	--our current laps are less than the laps to change it to
 	--Also have a session that has laps
-	if @lap < @Laps and @lap != null
+	if @lap < @Laps and @Laps is not null
 		update Sessions
-		set Laps = @lap
+		set Laps = @Laps
 		where
 			BikeID like @BikeID and
 			RiderID = @RiderID and
@@ -548,7 +547,24 @@ as
 				on r.RiderID = s.RiderID
 		where r.RiderID = @RiderID --------Different line
 		group by r.Name, c.ClassID, c.ClassDescription
-	else-----------------------------------------------Have a class and rider ID
+	else if @ClassID is not null and @RiderID is not null --Have a class and rider ID
+		select 
+			c.ClassID as 'Class',
+			c.ClassDescription as 'Description',
+			r.Name as 'Rider',
+			count(s.SessionDate) as 'Session Count',
+			avg(coalesce(s.Laps, 0)) as 'Average Laps',
+			min(coalesce(s.Laps, 0)) as 'Minumum Laps',
+			max(coalesce(s.Laps, 0)) as 'Maximum Laps'
+		from Class as c
+			left outer join Riders as r
+			on c.ClassID = r.ClassID
+				left outer join Sessions as s
+				on r.RiderID = s.RiderID
+		where r.RiderID = @RiderID and c.ClassID = @ClassID
+		group by r.Name, c.ClassID, c.ClassDescription
+		order by c.ClassID, r.Name
+	else -------------------------------------------------------both class and rider are null
 		select 
 			c.ClassID as 'Class',
 			c.ClassDescription as 'Description',
@@ -564,7 +580,6 @@ as
 				on r.RiderID = s.RiderID
 		group by r.Name, c.ClassID, c.ClassDescription
 		order by c.ClassID, r.Name
-
 	set @ErrorMessage = 'Ok'
 	return 0
 go
@@ -578,7 +593,6 @@ insert Class ([ClassID], [ClassDescription])
 values ('150cc - Motorcycle', 'Intense 150cc motorcycle action!')
 insert Class ([ClassID], [ClassDescription])
 values ('100cc - GoKarts', 'Standard Racing')
-go
 
 ---Making Riders
 declare @identityM as int, @identityL as int, @identityP as int, @identityT as int, @error as nvarchar(max)
@@ -593,30 +607,45 @@ exec AddRider @Name = 'Toadette', @ClassID = '100cc - GoKarts', @ErrorMessage = 
 set @identityT = @@IDENTITY
 
 ---Making sessions, using riders
-exec AddSession @RiderID = @identityM, @BikeID = '000H-A', @Date = '24 December 2020', @ErrorMessage = @error output
-exec UpdateSession @RiderID = @identityM, @BikeID = '000H-A', @Date = '24 December 2020', @Laps = 5, @ErrorMessage = @error output
-exec AddSession @RiderID = @identityM, @BikeID = '000H-A', @Date = '25 December 2020',  @ErrorMessage = @error output
-exec UpdateSession @RiderID = @identityM, @BikeID = '000H-A', @Date = '24 December 2020', @Laps = 2, @ErrorMessage = @error output
+declare @ret as int
+exec AddSession		@RiderID = @identityM, @BikeID = '000H-A', @Date = '24 December 2020',				@ErrorMessage = @error output
+exec UpdateSession	@RiderID = @identityM, @BikeID = '000H-A', @Date = '24 December 2020', @Laps = 5,	@ErrorMessage = @error output
+exec AddSession		@RiderID = @identityM, @BikeID = '000H-A', @Date = '25 December 2020',				@ErrorMessage = @error output
+exec UpdateSession	@RiderID = @identityM, @BikeID = '000H-A', @Date = '25 December 2020', @Laps = 2,	@ErrorMessage = @error output
 
-exec AddSession @RiderID = @identityL, @BikeID = '005Y-P', @Date = '12 December 2020', @ErrorMessage = @error output
-exec UpdateSession @RiderID = @identityL, @BikeID = '005Y-P', @Date = '12 December 2020', @Laps = 10, @ErrorMessage = @error output
-exec AddSession @RiderID = @identityL, @BikeID = '005Y-P', @Date = '19 December 2020', @ErrorMessage = @error output
-exec UpdateSession @RiderID = @identityL, @BikeID = '005Y-P', @Date = '12 December 2020', @Laps = 2, @ErrorMessage = @error output
+exec AddSession		@RiderID = @identityL, @BikeID = '005Y-P', @Date = '12 December 2020',				@ErrorMessage = @error output
+exec UpdateSession	@RiderID = @identityL, @BikeID = '005Y-P', @Date = '12 December 2020', @Laps = 10,	@ErrorMessage = @error output
+exec AddSession		@RiderID = @identityL, @BikeID = '005Y-P', @Date = '19 December 2020',				@ErrorMessage = @error output
+exec UpdateSession	@RiderID = @identityL, @BikeID = '005Y-P', @Date = '19 December 2020', @Laps = 2,	@ErrorMessage = @error output
 
-exec AddSession @RiderID = @identityP, @BikeID = '010S-A', @Date = '12 December 2020', @ErrorMessage = @error output
-exec UpdateSession @RiderID = @identityP, @BikeID = '010S-A', @Date = '12 December 2020', @Laps = 6, @ErrorMessage = @error output
-exec AddSession @RiderID = @identityP, @BikeID = '010S-A', @Date = '19 December 2020', @ErrorMessage = @error output
-exec UpdateSession @RiderID = @identityP, @BikeID = '010S-A', @Date = '12 December 2020', @Laps = 4, @ErrorMessage = @error output
+exec AddSession		@RiderID = @identityP, @BikeID = '010S-A', @Date = '12 December 2020',				@ErrorMessage = @error output
+exec UpdateSession	@RiderID = @identityP, @BikeID = '010S-A', @Date = '12 December 2020', @Laps = 6,	@ErrorMessage = @error output
+exec AddSession		@RiderID = @identityP, @BikeID = '010S-A', @Date = '19 December 2020',				@ErrorMessage = @error output
+exec UpdateSession	@RiderID = @identityP, @BikeID = '010S-A', @Date = '19 December 2020', @Laps = 4,	@ErrorMessage = @error output
 
-exec AddSession @RiderID = @identityT, @BikeID = '019H-A', @Date = '24 December 2020', @ErrorMessage = @error output
-exec UpdateSession @RiderID = @identityT, @BikeID = '019H-A', @Date = '24 December 2020', @Laps = 1, @ErrorMessage = @error output
-exec AddSession @RiderID = @identityT, @BikeID = '019H-A', @Date = '25 December 2020', @ErrorMessage = @error output
-exec UpdateSession @RiderID = @identityT, @BikeID = '019H-A', @Date = '24 December 2020', @Laps = 6, @ErrorMessage = @error output
+exec AddSession		@RiderID = @identityT, @BikeID = '019H-A', @Date = '24 December 2020',				@ErrorMessage = @error output
+exec UpdateSession	@RiderID = @identityT, @BikeID = '019H-A', @Date = '24 December 2020', @Laps = 1,	@ErrorMessage = @error output
+exec AddSession		@RiderID = @identityT, @BikeID = '019H-A', @Date = '25 December 2020',				@ErrorMessage = @error output
+exec UpdateSession	@RiderID = @identityT, @BikeID = '019H-A', @Date = '25 December 2020', @Laps = 6,	@ErrorMessage = @error output
 
 --Retrieve additions
 exec ClassInfo @ClassID = '150cc - Motorcycle', @ErrorMessage = @error output
-exec ClassInfo @ClassID = '100cc - GoKarts', @ErrorMessage = @error output
+exec ClassInfo @ClassID = '100cc - GoKarts',	@ErrorMessage = @error output
 exec ClassSummary @ErrorMessage = @error output
+go
+
+--See all the data
+select *
+from Class
+
+select *
+from Riders
+
+select *
+from Sessions
+
+select *
+from Bikes
 go
 
 ---Error Testing-----------------------------------------------------------------------------------
@@ -812,7 +841,7 @@ set @class = ''
 set @rider = null
 exec @ret = ClassInfo @ClassID = @class, @RiderID = @rider, @ErrorMessage = @error output
 if @ret < 0 select @ret as 'Error Value', @error as 'Error Message'
---CLass is not exist
+--Class is not exist
 set @class = 'Not exist'
 set @rider = null
 exec @ret = ClassInfo @ClassID = @class, @RiderID = @rider, @ErrorMessage = @error output
@@ -845,9 +874,57 @@ go
 declare @ret as int, @error as nvarchar(max)
 declare @class as nvarchar(30), @rider as int
 
+--ClassID null
 set @class = null
 set @rider = null
 exec @ret = ClassSummary @ClassID = @class, @RiderID = @rider, @ErrorMessage = @error output
 if @ret < 0 select @ret as 'Error Value', @error as 'Error Message'
 
+--ClassID empty
+set @class = ''
+set @rider = null
+exec @ret = ClassSummary @ClassID = @class, @RiderID = @rider, @ErrorMessage = @error output
+if @ret < 0 select @ret as 'Error Value', @error as 'Error Message'
+
+--Class not exist
+set @class = 'Not exist'
+set @rider = null
+exec @ret = ClassSummary @ClassID = @class, @RiderID = @rider, @ErrorMessage = @error output
+if @ret < 0 select @ret as 'Error Value', @error as 'Error Message'
+
+--Rider null
+set @class = '150cc - Motorcycle'
+set @rider = null
+exec @ret = ClassSummary @ClassID = @class, @RiderID = @rider, @ErrorMessage = @error output
+if @ret < 0 select @ret as 'Error Value', @error as 'Error Message'
+
+--Rider not exist
+set @class = '150cc - Motorcycle'
+set @rider = 9
+exec @ret = ClassSummary @ClassID = @class, @RiderID = @rider, @ErrorMessage = @error output
+if @ret < 0 select @ret as 'Error Value', @error as 'Error Message'
+
+--no sessions
+insert Class (ClassID) values ('This is a test')
+exec AddRider 'Test Rider', 'This is a test', @error output
+declare @ident as int = @@identity
+
+set @class = 'This is a test'
+set @rider = null
+exec @ret = ClassSummary @ClassID = @class, @RiderID = @rider, @ErrorMessage = @error output
+if @ret < 0 select @ret as 'Error Value', @error as 'Error Message'
+
+--no riders
+exec RemoveRider @ident, 1, @error output
+
+set @class = 'This is a test'
+set @rider = null
+exec @ret = ClassSummary @ClassID = @class, @RiderID = @rider, @ErrorMessage = @error output
+if @ret < 0 select @ret as 'Error Value', @error as 'Error Message'
+
+--RiderID valid
+set @class = '150cc - Motorcycle'
+set @rider = 10
+exec @ret = ClassSummary @ClassID = @class, @RiderID = @rider, @ErrorMessage = @error output
+if @ret < 0 select @ret as 'Error Value', @error as 'Error Message'
 go
