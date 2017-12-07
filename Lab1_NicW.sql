@@ -169,22 +169,30 @@ if exists(
 go
 create procedure AddRider
 @Name as nvarchar(30),
-@ClassID as nvarchar(30) = null
+@ClassID as nvarchar(30) = null,
+@ErrorMessage as nvarchar(max) output
 as
 	--Name is null
 	if @Name is null or @Name like ''
+	begin
+		set @ErrorMessage = 'Name is null or empty'
 		return -1
+	end
 	--Class does not exist
 	if @ClassID is not null and not exists(
 		select ClassId
 		from Class
 		where ClassID like @ClassID
 	)
+	begin
+		set @ErrorMessage = 'Class does not exist'
 		return -1
+	end
 
 	insert Riders ([Name], [ClassID])
 	values (@Name, @ClassID);
 
+	set @ErrorMessage = 'Ok'
 	return 0
 go
 
@@ -197,14 +205,18 @@ if exists(
 go
 create procedure RemoveRider
 @RiderID as int,
-@force as bit = 0
+@force as bit = 0,
+@ErrorMessage as nvarchar(max) output
 as
 	if @RiderID is null or not exists (
 		select RiderID
 		from Riders
 		where RiderID = @RiderID
 	)
+	begin
+		set @ErrorMessage = 'RiderID is null or not exists'
 		return -1
+	end
 
 
 	declare @count as int
@@ -214,7 +226,10 @@ as
 	where s.RiderID = @RiderID
 
 	if @count > 0 and @force = 0
+	begin
+		set @ErrorMessage = 'More than 0 riders, not forcing'
 		return -1
+	end
 
 	if @force = 1
 		delete Sessions
@@ -223,6 +238,7 @@ as
 	delete Riders
 	where Riders.RiderID = @RiderID
 
+	set @ErrorMessage = 'Ok'
 	return 0
 go
 ---Session Procedures-----------------------------
@@ -237,35 +253,49 @@ go
 create procedure AddSession
 @RiderID as int,
 @BikeID as nvarchar(6),
-@Date as datetime
+@Date as datetime,
+@ErrorMessage as nvarchar(max) output
 as
 	if @RiderID is null or not exists(
 		select RiderID
 		from Riders
 		where RiderID = @RiderID
 	)
+	begin
+		set @ErrorMessage = 'RiderID is null or not exists'
 		return -1
+	end
 
 	if @BikeID is null or not exists(
 		select BikeID
 		from Bikes
 		where BikeID = @BikeID
 	)
+	begin
+		set @ErrorMessage = 'BikeID is null or not exists'
 		return -1
+	end
 
 	if @Date is null or @Date < GETDATE()
+	begin
+		set @ErrorMessage = 'Date is null or before now'
 		return -1
+	end
 
 	if exists(
 		select BikeID
 		from Sessions
 		where BikeId = @BikeID and SessionDate = @Date --Same bike at the same time
 	)
+	begin
+		set @ErrorMessage = 'Bike already in use'
 		return -1
+	end
 
 	insert Sessions ([RiderID], [BikeID], [SessionDate])
 	values (@RiderID, @BikeID, @Date)
 
+	set @ErrorMessage = 'Ok'
 	return 0
 go
 
@@ -280,18 +310,23 @@ create procedure UpdateSession
 @RiderID as int,
 @BikeID as nvarchar(6),
 @Date as datetime,
-@Laps as int
+@Laps as int,
+@ErrorMessage as nvarchar(max) output
 as
 
 	if not exists(
-		select *
+		select 
+			SessionDate
 		from Sessions
 		where
 			RiderID = @RiderID and
 			BikeID like @BikeID and
 			SessionDate = @Date
 	)
+	begin
+		set @ErrorMessage = 'Session does not exist'
 		return -1
+	end
 
 	declare @lap as int
 
@@ -313,8 +348,12 @@ as
 			RiderID = @RiderID and
 			SessionDate = @Date
 	else
+	begin
+		set @ErrorMessage = 'Can not lower the amount of laps'
 		return -1
+	end
 
+	set @ErrorMessage = 'Ok'
 	return 0
 go
 ---Class Procedures-------------------------------
@@ -328,7 +367,8 @@ if exists(
 go
 create procedure RemoveClass
 @ClassID as nvarchar(30),
-@force as bit = 0
+@force as bit = 0,
+@ErrorMessage as nvarchar(max) output
 as
 	declare @rows as int, @RiderID as int
 
@@ -339,11 +379,17 @@ as
 
 	--ClassID can't be null or empty
 	if @ClassID is null or @ClassID like ''
+	begin
+		set @ErrorMessage = 'ClassID null or empty'
 		return -1
+	end
 
 	--We have a rider in this class, don't force
 	if @rows > 0 and @force = 0
+	begin
+		set @ErrorMessage = 'There is a rider, do not force'
 		return -1
+	end
 	else if @rows > 0 and @force = 1 begin
 		delete Sessions
 		where RiderID in (
@@ -368,6 +414,7 @@ as
 	delete Class
 	where ClassID = @ClassID
 
+	set @ErrorMessage = 'Ok'
 	return 0
 go
 
@@ -380,25 +427,35 @@ if exists(
 go
 create procedure ClassInfo
 @ClassID as nvarchar(30),
-@RiderID as int = null
+@RiderID as int = null,
+@ErrorMessage as nvarchar(max) output
 as
 	--ClassID can't be null or empty
 	if @ClassID is null or @ClassID like ''
+	begin
+		set @ErrorMessage = 'ClassID is null or empty'
 		return -1
+	end
 	--ClassID has to exist
 	if not exists(
 		select ClassID
 		from Class
 		where ClassID like @ClassID
 	)
+	begin
+		set @ErrorMessage = 'Class does not exist'
 		return -1
+	end
 	--RiderID has to exist if it isn't null
 	if @RiderID is not null and not exists(
 		select RiderID
 		from Riders
 		where RiderID = @RiderID
 	)
+	begin
+		set @ErrorMessage = 'RiderID is null or not exist'
 		return -1
+	end
 
 	if @RiderID is NULL
 		select *
@@ -415,6 +472,9 @@ as
 		where
 			c.ClassID like @ClassID and
 			r.RiderID = @RiderID
+
+	set @ErrorMessage = 'Ok'
+	return 0
 go
 
 if exists(
@@ -426,25 +486,35 @@ if exists(
 go
 create procedure ClassSummary
 @ClassID as nvarchar(30) = null,
-@RiderID as int = null
+@RiderID as int = null,
+@ErrorMessage as nvarchar(max) output
 as
 	--ClassID can't be empty
 	if @ClassID like ''
+	begin
+		set @ErrorMessage = 'ClassID is empty'
 		return -1
+	end
 	--ClassID has to exist if it isn't null
 	if @ClassID is not null and not exists(
 		select ClassID
 		from Class
 		where ClassID like @ClassID
 	)
+	begin
+		set @ErrorMessage = 'ClassID does not exist'
 		return -1
+	end
 	--RiderID has to exist if it isn't null
 	if @RiderID is not null and not exists(
 		select RiderID
 		from Riders
 		where RiderID = @RiderID
 	)
+	begin
+		set @ErrorMessage = 'RiderID does not exist'
 		return -1
+	end
 
 	if @ClassID is not null and @RiderID is null --Have just a classID
 		select 
@@ -495,6 +565,7 @@ as
 		group by r.Name, c.ClassID, c.ClassDescription
 		order by c.ClassID, r.Name
 
+	set @ErrorMessage = 'Ok'
 	return 0
 go
 
@@ -511,35 +582,35 @@ values ('100cc - GoKarts', 'Standard Racing')
 go
 
 ---Making Riders
-declare @identityM as int, @identityL as int, @identityP as int, @identityT as int
-exec AddRider @Name = 'Mario', @ClassID = '150cc - Motorcycle'
+declare @identityM as int, @identityL as int, @identityP as int, @identityT as int, @error as nvarchar(max)
+exec AddRider @Name = 'Mario', @ClassID = '150cc - Motorcycle', @ErrorMessage = @error output
 set @identityM = @@IDENTITY
-exec AddRider @Name = 'Luigi', @ClassID = '150cc - Motorcycle'
+exec AddRider @Name = 'Luigi', @ClassID = '150cc - Motorcycle', @ErrorMessage = @error output
 set @identityL = @@IDENTITY
 
-exec AddRider @Name = 'Peach', @ClassID = '100cc - GoKarts'
+exec AddRider @Name = 'Peach', @ClassID = '100cc - GoKarts', @ErrorMessage = @error output
 set @identityP = @@IDENTITY
-exec AddRider @Name = 'Toadette', @ClassID = '100cc - GoKarts'
+exec AddRider @Name = 'Toadette', @ClassID = '100cc - GoKarts', @ErrorMessage = @error output
 set @identityT = @@IDENTITY
 
 ---Making sessions, using riders
-exec AddSession @RiderID = @identityM, @BikeID = '000H-A', @Date = '24 December 2020'
-exec AddSession @RiderID = @identityM, @BikeID = '000H-A', @Date = '25 December 2020'
+exec AddSession @RiderID = @identityM, @BikeID = '000H-A', @Date = '24 December 2020', @ErrorMessage = @error output
+exec AddSession @RiderID = @identityM, @BikeID = '000H-A', @Date = '25 December 2020', @ErrorMessage = @error output
 
-exec AddSession @RiderID = @identityL, @BikeID = '005Y-P', @Date = '12 December 2020'
-exec AddSession @RiderID = @identityL, @BikeID = '005Y-P', @Date = '19 December 2020'
+exec AddSession @RiderID = @identityL, @BikeID = '005Y-P', @Date = '12 December 2020', @ErrorMessage = @error output
+exec AddSession @RiderID = @identityL, @BikeID = '005Y-P', @Date = '19 December 2020', @ErrorMessage = @error output
 
-exec AddSession @RiderID = @identityP, @BikeID = '010S-A', @Date = '12 December 2020'
-exec AddSession @RiderID = @identityP, @BikeID = '010S-A', @Date = '19 December 2020'
+exec AddSession @RiderID = @identityP, @BikeID = '010S-A', @Date = '12 December 2020', @ErrorMessage = @error output
+exec AddSession @RiderID = @identityP, @BikeID = '010S-A', @Date = '19 December 2020', @ErrorMessage = @error output
 
-exec AddSession @RiderID = @identityT, @BikeID = '019H-A', @Date = '24 December 2020'
-exec AddSession @RiderID = @identityT, @BikeID = '019H-A', @Date = '25 December 2020'
-go
+exec AddSession @RiderID = @identityT, @BikeID = '019H-A', @Date = '24 December 2020', @ErrorMessage = @error output
+exec AddSession @RiderID = @identityT, @BikeID = '019H-A', @Date = '25 December 2020', @ErrorMessage = @error output
 
 --Retrieve additions
-exec ClassInfo @ClassID = '150cc - Motorcycle'
-exec ClassInfo @ClassID = '100cc - GoKarts'
-exec ClassSummary
+exec ClassInfo @ClassID = '150cc - Motorcycle', @ErrorMessage = @error output
+exec ClassInfo @ClassID = '100cc - GoKarts', @ErrorMessage = @error output
+exec ClassSummary @ErrorMessage = @error output
 go
 
 ---Error Testing--------------------------------------------------------------------------------------
+
